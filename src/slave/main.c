@@ -9,7 +9,6 @@
 static char* DATA_DIR = "data";
 // 64 MB pow(2, 26)
 static int MAX_FILE_SIZE = 67108864;
-//static int MAX_FILE_SIZE = 1024;
 
 void put(char* id, char* data) {
     printf("put(\"%s\", \"%s\")\n", id, data);
@@ -44,6 +43,19 @@ void get(char* id) {
     }
 }
 
+void del(char* id) {
+    printf("del(%s)", id);
+    char filename[255];
+    sprintf(filename, "%s/%s", DATA_DIR, id);
+
+    if(access(filename, F_OK) != -1 ) {
+        unlink(filename);
+    } else {
+        printf("cannot open %s\n", filename);
+    }
+}
+
+
 void list() {
     printf("list()");
     DIR* dp;
@@ -58,7 +70,6 @@ void list() {
     } else {
         perror("could not open the data directory");
     }
-
 }
 
 void rebalance(void) {
@@ -70,12 +81,12 @@ void replicate() {
 }
 
 int main(void) {
-    printf("Starting master...\n");
+    printf("Starting slave...\n");
     char choice[255];
     char id[255];
     choice[0] = '\0';
     while(strcmp(choice, "q") != 0) {
-        printf("press 'p' for put, 'g' for get, 'r' for rebalance and 'rep' for replicate: ");
+        printf("press 'p' for put, 'g' for get, 'ls' for list dir, 'd' for delete, 'r' for rebalance and 'rep' for replicate: ");
         scanf("%s", choice);
         if(choice[0]=='p') {
             char id[255];
@@ -89,6 +100,10 @@ int main(void) {
             printf("id: ");
             scanf("%s", id);
             get(id);
+        } else if(choice[0]=='d') {
+            printf("id: ");
+            scanf("%s", id);
+            del(id);
         } else if(strcmp(choice, "ls") == 0) {
             list();
         } else if(strcmp(choice, "r") == 0) {
