@@ -12,26 +12,30 @@
 static char* DATA_DIR = "data";
 // 64 MB pow(2, 26)
 static int MAX_FILE_SIZE = 67108864;
+static int RESP_SIZE = 255;
 
-void put(char* id, char* data) {
+const char* put(const char* id, const char* data) {
     printf("put(\"%s\", \"%s\")\n", id, data);
     char filename[255];
     sprintf(filename, "%s/%s", DATA_DIR, id);
+    char* resp = calloc(RESP_SIZE, sizeof(char));
 
     if(access(filename, F_OK) != -1 ) {
-        printf("file exists, skipping write\n");
+        snprintf(resp, RESP_SIZE, "file exists, skipping write\n");
     } else {
         FILE* f = fopen(filename, "w");
         size_t bytes = fwrite(data, sizeof(char), strlen(data), f);
         fclose(f);
-        printf("wrote %d bytes to %s\n", bytes, filename);
+        snprintf(resp, RESP_SIZE, "wrote %d bytes to %s\n", bytes, filename);
     }
+    return resp;
 }
 
-void get(char* id) {
+const char* get(const char* id) {
     printf("get(%s)\n", id);
     char filename[255];
     sprintf(filename, "%s/%s", DATA_DIR, id);
+    char* resp = calloc(RESP_SIZE, sizeof(char));
 
     if(access(filename, R_OK) != -1 ) {
         char* file_buf = calloc(MAX_FILE_SIZE, sizeof(char));
@@ -41,47 +45,60 @@ void get(char* id) {
 
         printf("Printing file:\n");
         printf("%s\n", file_buf);
+        snprintf(resp, RESP_SIZE, "%s", file_buf);
     } else {
-        printf("cannot open %s\n", filename);
+        snprintf(resp, RESP_SIZE, "cannot open %s\n", filename);
     }
+    return resp;
 }
 
-void del(char* id) {
+const char* del(const char* id) {
     printf("del(%s)\n", id);
     char filename[255];
     sprintf(filename, "%s/%s", DATA_DIR, id);
+    char* resp = calloc(RESP_SIZE, sizeof(char));
 
     if(access(filename, F_OK) != -1 ) {
         unlink(filename);
-        printf("successfully removed %s\n", filename);
+        snprintf(resp, RESP_SIZE, "successfully removed %s\n", filename);
     } else {
-        printf("cannot open %s\n", filename);
+        snprintf(resp, RESP_SIZE, "cannot open %s\n", filename);
     }
+    return resp;
 }
 
 
-void list() {
+const char* list() {
     printf("list()\n");
     DIR* dp;
     struct dirent* ep;
     dp = opendir(DATA_DIR);
+    char* resp = calloc(RESP_SIZE, sizeof(char));
 
     if (dp != NULL) {
         while (ep = readdir(dp)) {
-            puts(ep->d_name);
+            if(ep->d_name[0] != '.') {
+                strncat(resp, ep->d_name, RESP_SIZE);
+                strncat(resp, "\n", RESP_SIZE);
+            }
         }
         closedir(dp);
     } else {
-        perror("could not open the data directory");
+        snprintf(resp, RESP_SIZE, "ERROR: could not open the data directory");
     }
+    return resp;
 }
 
-void rebalance(void) {
-    printf("rebalance()...\n");
+const char* rebalance(void) {
+    char* resp = calloc(RESP_SIZE, sizeof(char));
+    snprintf(resp, RESP_SIZE, "rebalance()...\n");
+    return resp;
 }
 
-void replicate() {
-    printf("replicate()...\n");
+const char* replicate() {
+    char* resp = calloc(RESP_SIZE, sizeof(char));
+    snprintf(resp, RESP_SIZE, "replicate()...\n");
+    return resp;
 }
 
 int main(void) {
@@ -111,15 +128,72 @@ int main(void) {
         const char* type = json_string_value(type_obj);
         printf("Type is : %s", type);
         fflush(stdout);
+        strcpy(choice, type);
 
-        json_decref(obj);
-        zstr_free(&string);
+        if(choice[0]=='p') {
+/*
+            char id[255];
+            char data[255];
+            printf("id: ");
+            scanf("%s", id);
+            printf("data: ");
+            scanf("%s", data);
+*/
+            json_t* id_obj = json_object_get(obj, "id");
+            if(!json_is_string(id_obj)) {
+                fprintf(stderr, "error: getting ID, line %d: %s\n", error.line, error.text);
+                return 1;
+            }
+            const char* id = json_string_value(id_obj);
+
+            json_t* data_obj = json_object_get(obj, "data");
+            if(!json_is_string(data_obj)) {
+                fprintf(stderr, "error: getting data, line %d: %s\n", error.line, error.text);
+                return 1;
+            }
+            const char* data = json_string_value(data_obj);
+
+            const char* tmpresp = put(id, data);
+            zstr_send(rep, tmpresp);
+        } else if(choice[0]=='g') {
+            //printf("id: ");
+            //scanf("%s", id);
+
+            json_t* id_obj = json_object_get(obj, "id");
+            if(!json_is_string(id_obj)) {
+                fprintf(stderr, "error: getting ID, line %d: %s\n", error.line, error.text);
+                return 1;
+            }
+            const char* id = json_string_value(id_obj);
+
+            const char* tmpresp = get(id);
+            zstr_send(rep, tmpresp);
+        } else if(choice[0]=='d') {
+            json_t* id_obj = json_object_get(obj, "id");
+            if(!json_is_string(id_obj)) {
+                fprintf(stderr, "error: getting ID, line %d: %s\n", error.line, error.text);
+                return 1;
+            }
+            const char* id = json_string_value(id_obj);
+
+            const char* tmpresp = del(id);
+            zstr_send(rep, tmpresp);
+        } else if(strcmp(choice, "ls") == 0) {
+            const char* tmpresp = list();
+            zstr_send(rep, tmpresp);
+        } else if(strcmp(choice, "r") == 0) {
+            const char* tmpresp = rebalance();
+            zstr_send(rep, tmpresp);
+        } else if(strcmp(choice, "rep") == 0) {
+            const char* tmpresp = replicate();
+            zstr_send(rep, tmpresp);
+        }
 
         // TODO: Plug the values into this and get it to these based on them.
 
         // Send response
         // TODO
-        zstr_send(rep, "Hello, World back at you");
+        //zstr_send(rep, "Hello, World back at you");
 
 /*
         printf("press 'p' for put, 'g' for get, 'ls' for list dir, 'd' for delete, 'r' for rebalance and 'rep' for replicate: ");
@@ -148,6 +222,11 @@ int main(void) {
             replicate();
         }
 */
+        json_decref(obj);
+        zstr_free(&string);
+        //char resp[255];
+        //resp[0] = '\0';
+
     }
 
     zsock_destroy(&rep);
