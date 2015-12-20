@@ -105,7 +105,6 @@ int main(void) {
 
     printf("Starting slave...\n");
     char choice[255];
-    char id[255];
     choice[0] = '\0';
     while(strcmp(choice, "q") != 0) {
         // Get request
