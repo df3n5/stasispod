@@ -14,7 +14,7 @@ static char* DATA_DIR = "data";
 static int MAX_FILE_SIZE = 67108864;
 static int RESP_SIZE = 255;
 
-const char* put(const char* id, const char* data) {
+char* put(const char* id, const char* data) {
     printf("put(\"%s\", \"%s\")\n", id, data);
     char filename[255];
     sprintf(filename, "%s/%s", DATA_DIR, id);
@@ -31,7 +31,7 @@ const char* put(const char* id, const char* data) {
     return resp;
 }
 
-const char* get(const char* id) {
+char* get(const char* id) {
     printf("get(%s)\n", id);
     char filename[255];
     sprintf(filename, "%s/%s", DATA_DIR, id);
@@ -52,7 +52,7 @@ const char* get(const char* id) {
     return resp;
 }
 
-const char* del(const char* id) {
+char* del(const char* id) {
     printf("del(%s)\n", id);
     char filename[255];
     sprintf(filename, "%s/%s", DATA_DIR, id);
@@ -67,8 +67,7 @@ const char* del(const char* id) {
     return resp;
 }
 
-
-const char* list() {
+char* list() {
     printf("list()\n");
     DIR* dp;
     struct dirent* ep;
@@ -89,13 +88,13 @@ const char* list() {
     return resp;
 }
 
-const char* rebalance(void) {
+char* rebalance(void) {
     char* resp = calloc(RESP_SIZE, sizeof(char));
     snprintf(resp, RESP_SIZE, "rebalance()...\n");
     return resp;
 }
 
-const char* replicate() {
+char* replicate() {
     char* resp = calloc(RESP_SIZE, sizeof(char));
     snprintf(resp, RESP_SIZE, "replicate()...\n");
     return resp;
@@ -153,8 +152,9 @@ int main(void) {
             }
             const char* data = json_string_value(data_obj);
 
-            const char* tmpresp = put(id, data);
+            char* tmpresp = put(id, data);
             zstr_send(rep, tmpresp);
+            free(tmpresp);
         } else if(choice[0]=='g') {
             //printf("id: ");
             //scanf("%s", id);
@@ -166,8 +166,9 @@ int main(void) {
             }
             const char* id = json_string_value(id_obj);
 
-            const char* tmpresp = get(id);
+            char* tmpresp = get(id);
             zstr_send(rep, tmpresp);
+            free(tmpresp);
         } else if(choice[0]=='d') {
             json_t* id_obj = json_object_get(obj, "id");
             if(!json_is_string(id_obj)) {
@@ -176,17 +177,21 @@ int main(void) {
             }
             const char* id = json_string_value(id_obj);
 
-            const char* tmpresp = del(id);
+            char* tmpresp = del(id);
             zstr_send(rep, tmpresp);
+            free(tmpresp);
         } else if(strcmp(choice, "ls") == 0) {
-            const char* tmpresp = list();
+            char* tmpresp = list();
             zstr_send(rep, tmpresp);
+            free(tmpresp);
         } else if(strcmp(choice, "r") == 0) {
-            const char* tmpresp = rebalance();
+            char* tmpresp = rebalance();
             zstr_send(rep, tmpresp);
+            free(tmpresp);
         } else if(strcmp(choice, "rep") == 0) {
-            const char* tmpresp = replicate();
+            char* tmpresp = replicate();
             zstr_send(rep, tmpresp);
+            free(tmpresp);
         }
 
         // TODO: Plug the values into this and get it to these based on them.
